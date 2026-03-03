@@ -33,9 +33,9 @@ class PromptRequest(BaseModel):
 
 
 @app.post("/api/v1/image/")
-def generate_image(request: PromptRequest) -> dict:
-    with OpenRouter(api_key=OPENROUTER_API_KEY) as client:
-        response = client.chat.send(
+async def generate_image(request: PromptRequest) -> dict:
+    async with OpenRouter(api_key=OPENROUTER_API_KEY) as client:
+        response = await client.chat.send_async(
             model="google/gemini-3-pro-image-preview",
             messages=[{"role": "user", "content": request.prompt}],
             modalities=["image"],

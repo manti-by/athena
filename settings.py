@@ -14,12 +14,18 @@ LOGGING = {
     },
     "handlers": {
         "console": {
-            "level": "DEBUG",
+            "level": "INFO",
             "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "file": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "filename": os.getenv("LOG_PATH", "/var/log/athena/athena.log"),
             "formatter": "standard",
         },
     },
     "loggers": {
-        "": {"handlers": ["console"], "level": "DEBUG", "propagate": True},
+        "": {"handlers": ["console", "file"], "level": "INFO", "propagate": True},
     },
 }
