@@ -49,6 +49,30 @@
             gap: 1rem;
         }
 
+        #session-selector {
+            padding: 0.5rem;
+            background: #161614;
+            color: #eee;
+            border: 1px solid #3d3d3b;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        #new-session-btn {
+            padding: 0.5rem;
+            background: transparent;
+            color: #eee;
+            border: 1px solid #3d3d3b;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        #new-session-btn:hover {
+            background: #3d3d3b;
+        }
+
         #login-btn {
             padding: 0.5rem 1rem;
             background: #e94560;
@@ -262,6 +286,10 @@
         <header>
             <h1>Image Generator</h1>
             <div class="header-right">
+                <select id="session-selector">
+                    <option value="">New Session</option>
+                </select>
+                <button id="new-session-btn" title="New Session">+</button>
                 <div id="user-info" class="user-info" style="display: none;">
                     <img id="user-avatar" class="user-avatar" src="" alt="Avatar">
                     <span id="user-name" class="user-name"></span>
@@ -299,8 +327,11 @@
         const userName = document.getElementById('user-name');
         const inputContainer = document.getElementById('input-container');
         const authPrompt = document.getElementById('auth-prompt');
+        const sessionSelector = document.getElementById('session-selector');
+        const newSessionBtn = document.getElementById('new-session-btn');
 
         let isAuthenticated = false;
+        let currentSessionId = null;
 
         async function checkAuth() {
             try {
@@ -316,6 +347,7 @@
                     chatContainer.classList.remove('hidden');
                     inputContainer.classList.remove('hidden');
                     authPrompt.classList.add('hidden');
+                    loadSessions();
                 } else {
                     isAuthenticated = false;
                     userInfo.style.display = 'none';
@@ -338,6 +370,49 @@
             await fetch('/auth/logout', { method: 'POST' });
             window.location.reload();
         });
+
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/v1/sessions/');
+                const sessions = await response.json();
+                sessionSelector.innerHTML = '<option value="">New Session</option>';
+                sessions.forEach(session => {
+                    const option = document.createElement('option');
+                    option.value = session.id;
+                    const date = new Date(session.created_at).toLocaleDateString();
+                    option.textContent = `Session ${session.id} - ${date}`;
+                    sessionSelector.appendChild(option);
+                });
+                if (currentSessionId) {
+                    sessionSelector.value = currentSessionId;
+                }
+            } catch (e) {
+                console.error('Failed to load sessions:', e);
+            }
+        }
+
+        async function createNewSession() {
+            try {
+                const response = await fetch('/api/v1/sessions/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const session = await response.json();
+                currentSessionId = session.id;
+                chatContainer.innerHTML = '';
+                await loadSessions();
+                sessionSelector.value = currentSessionId;
+            } catch (e) {
+                console.error('Failed to create session:', e);
+            }
+        }
+
+        sessionSelector.addEventListener('change', (e) => {
+            currentSessionId = e.target.value ? parseInt(e.target.value) : null;
+            chatContainer.innerHTML = '';
+        });
+
+        newSessionBtn.addEventListener('click', createNewSession);
 
         checkAuth();
 
@@ -451,7 +526,11 @@
             addMessage('', 'loading');
 
             try {
-                const response = await fetch('/api/v1/image/', {
+                let url = '/api/v1/image/';
+                if (currentSessionId) {
+                    url = `/api/v1/image/${currentSessionId}`;
+                }
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt, images: imagesToSend.length > 0 ? imagesToSend : null })

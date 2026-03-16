@@ -111,3 +111,51 @@ class TestImageGeneration:
         content = messages[0]["content"]
         assert content[0] == {"type": "text", "text": "Describe this image"}
         assert content[1] == {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,base64encodedimage"}}
+
+
+class TestSessions:
+    def test_list_sessions_returns_empty_when_not_authenticated(self):
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/api/v1/sessions/")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_create_session_returns_error_when_not_authenticated(self):
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.post("/api/v1/sessions/")
+        assert response.status_code == 200
+        assert response.json() is None
+
+    @patch("athena.routes.api.OpenRouter")
+    def test_generate_image_without_session_id_creates_new_session(self, client_mock):
+        response_mock = MagicMock()
+        response_mock.choices[0].message.images = []
+
+        mock_client = AsyncMock()
+        mock_client.chat.send_async = AsyncMock(return_value=response_mock)
+        client_mock.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        client_mock.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.post("/api/v1/image/", json={"prompt": "Create an image"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "images" in data
+
+    @patch("athena.routes.api.OpenRouter")
+    def test_generate_image_with_session_id_returns_session_id(self, client_mock):
+        response_mock = MagicMock()
+        response_mock.choices[0].message.images = []
+
+        mock_client = AsyncMock()
+        mock_client.chat.send_async = AsyncMock(return_value=response_mock)
+        client_mock.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        client_mock.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.post("/api/v1/image/123", json={"prompt": "Create an image"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "images" in data
