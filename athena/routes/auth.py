@@ -13,7 +13,7 @@ from athena.services.auth import (
 from athena.services.database import async_session_maker
 
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
 @router.get("/google/login")

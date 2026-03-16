@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from openrouter import OpenRouter
-from pydantic import BaseModel
 
+from athena.schemas.api import PromptRequest
 from athena.settings import get_settings
 
 
@@ -9,12 +9,7 @@ router = APIRouter(prefix="/api/v1", tags=["api"])
 settings = get_settings()
 
 
-class PromptRequest(BaseModel):
-    prompt: str
-    images: list[str] | None = None
-
-
-@router.post("/image/")
+@router.post("/image")
 async def generate_image(request: PromptRequest) -> dict:
     content = [{"type": "text", "text": request.prompt}]
     if request.images:
