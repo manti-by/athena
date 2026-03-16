@@ -1,23 +1,39 @@
 import logging.config
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from openrouter import OpenRouter
-from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import create_async_engine
 
-from settings import LOGGING, OPENROUTER_API_KEY
+from athena.models.base import Base
+from athena.routes import api_router, auth_router
+from athena.settings import get_settings
 
 
-logging.config.dictConfig(LOGGING)
+settings = get_settings()
+
+logging.config.dictConfig(settings.LOGGING)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
 
-templates_dir = Path(__file__).parent / "templates"
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+templates_dir = Path(__file__).parent / "athena/templates"
 if templates_dir.exists():
     app.mount("/static", StaticFiles(directory=templates_dir), name="static")
+
+app.include_router(auth_router)
+app.include_router(api_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -26,20 +42,3 @@ async def root():
     if index_path.exists():
         return index_path.read_text()
     return "<h1>No template found</h1>"
-
-
-class PromptRequest(BaseModel):
-    prompt: str
-
-
-@app.post("/api/v1/image/")
-async def generate_image(request: PromptRequest) -> dict:
-    async with OpenRouter(api_key=OPENROUTER_API_KEY) as client:
-        response = await client.chat.send_async(
-            model="google/gemini-3-pro-image-preview",
-            messages=[{"role": "user", "content": request.prompt}],
-            modalities=["image"],
-        )
-
-    images = response.choices[0].message.images
-    return {"images": [x.image_url.url for x in images]}

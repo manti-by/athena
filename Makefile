@@ -25,4 +25,13 @@ update:
 test:
 	uv run pytest tests/
 
-ci: pip check test
+migrate:
+	uv run alembic upgrade head
+
+migrate-create:
+	uv run alembic revision --autogenerate -m "$(MSG)"
+
+migrate-down:
+	uv run alembic downgrade -1
+
+ci: pip check check test
