@@ -1,0 +1,257 @@
+const chatContainer = document.getElementById("chat-container");
+const promptInput = document.getElementById("prompt-input");
+const sendBtn = document.getElementById("send-btn");
+const imageBtn = document.getElementById("image-btn");
+const imageInput = document.getElementById("image-input");
+const loginBtn = document.getElementById("login-btn");
+const logoutBtn = document.getElementById("logout-btn");
+const userInfo = document.getElementById("user-info");
+const userAvatar = document.getElementById("user-avatar");
+const userName = document.getElementById("user-name");
+const inputContainer = document.getElementById("input-container");
+const authPrompt = document.getElementById("auth-prompt");
+const sessionSelector = document.getElementById("session-selector");
+const newSessionBtn = document.getElementById("new-session-btn");
+const attachedImagesContainer = document.getElementById(
+    "attached-images-container",
+);
+
+let isAuthenticated = false;
+let currentSessionId = null;
+
+async function checkAuth() {
+    try {
+        const response = await fetch("/api/v1/auth/me");
+        const data = await response.json();
+        if (data.authenticated) {
+            isAuthenticated = true;
+            userInfo.style.display = "flex";
+            loginBtn.style.display = "none";
+            logoutBtn.style.display = "block";
+            sessionSelector.style.display = "block";
+            newSessionBtn.style.display = "block";
+            userAvatar.src = data.user.avatar_url || "";
+            userName.textContent = data.user.name || data.user.email;
+            chatContainer.classList.remove("hidden");
+            inputContainer.classList.remove("hidden");
+            authPrompt.classList.add("hidden");
+            loadSessions();
+        } else {
+            isAuthenticated = false;
+            userInfo.style.display = "none";
+            loginBtn.style.display = "block";
+            logoutBtn.style.display = "none";
+            sessionSelector.style.display = "none";
+            newSessionBtn.style.display = "none";
+            chatContainer.classList.add("hidden");
+            inputContainer.classList.add("hidden");
+            authPrompt.classList.remove("hidden");
+        }
+    } catch (e) {
+        isAuthenticated = false;
+    }
+}
+
+loginBtn.addEventListener("click", () => {
+    window.location.href = "/api/v1/auth/google/login";
+});
+
+logoutBtn.addEventListener("click", async () => {
+    await fetch("/api/v1/auth/logout", { method: "POST" });
+    window.location.reload();
+});
+
+async function loadSessions() {
+    try {
+        const response = await fetch("/api/v1/sessions/");
+        const sessions = await response.json();
+        sessionSelector.innerHTML = '<option value="">New Session</option>';
+        sessions.forEach((session) => {
+            const option = document.createElement("option");
+            option.value = session.id;
+            const date = new Date(session.created_at).toLocaleDateString();
+            option.textContent = `Session ${session.id} - ${date}`;
+            sessionSelector.appendChild(option);
+        });
+        if (currentSessionId) {
+            sessionSelector.value = currentSessionId;
+        }
+    } catch (e) {
+        console.error("Failed to load sessions:", e);
+    }
+}
+
+async function createNewSession() {
+    try {
+        const response = await fetch("/api/v1/sessions/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+        });
+        const session = await response.json();
+        currentSessionId = session.id;
+        chatContainer.innerHTML = "";
+        await loadSessions();
+        sessionSelector.value = currentSessionId;
+    } catch (e) {
+        console.error("Failed to create session:", e);
+    }
+}
+
+sessionSelector.addEventListener("change", (e) => {
+    currentSessionId = e.target.value ? parseInt(e.target.value) : null;
+    chatContainer.innerHTML = "";
+});
+
+newSessionBtn.addEventListener("click", createNewSession);
+
+checkAuth();
+
+let attachedImages = [];
+
+function addMessage(content, type, imageData = null) {
+    const messageDiv = document.createElement("div");
+    messageDiv.className = `message ${type}`;
+
+    if (type === "loading") {
+        messageDiv.textContent = "Generating image...";
+    } else if (type === "error") {
+        messageDiv.textContent = content;
+    } else {
+        if (type === "user" && attachedImages.length > 0) {
+            const imgContainer = document.createElement("div");
+            imgContainer.className = "attached-images";
+            attachedImages.forEach((img, idx) => {
+                const imgEl = document.createElement("img");
+                imgEl.src = img.preview;
+                imgEl.style.width = "60px";
+                imgEl.style.height = "60px";
+                imgEl.style.objectFit = "cover";
+                imgEl.style.borderRadius = "0.25rem";
+                imgContainer.appendChild(imgEl);
+            });
+            messageDiv.appendChild(imgContainer);
+        }
+
+        const textSpan = document.createElement("span");
+        textSpan.textContent = content;
+        messageDiv.appendChild(textSpan);
+
+        if (imageData) {
+            const imgContainer = document.createElement("div");
+            imgContainer.className = "image-container";
+            const img = document.createElement("img");
+            img.src = imageData;
+            img.alt = "Generated image";
+            imgContainer.appendChild(img);
+            messageDiv.appendChild(imgContainer);
+        }
+    }
+
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function renderAttachedImages() {
+    attachedImagesContainer.innerHTML = "";
+    attachedImages.forEach((img, idx) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "attached-image";
+        const imgEl = document.createElement("img");
+        imgEl.src = img.preview;
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "remove-btn";
+        removeBtn.textContent = "×";
+        removeBtn.onclick = () => {
+            attachedImages.splice(idx, 1);
+            renderAttachedImages();
+        };
+        wrapper.appendChild(imgEl);
+        wrapper.appendChild(removeBtn);
+        attachedImagesContainer.appendChild(wrapper);
+    });
+}
+
+imageBtn.addEventListener("click", () => imageInput.click());
+
+imageInput.addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files);
+    for (const file of files) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const base64 = ev.target.result.split(",")[1];
+            attachedImages.push({ base64, preview: ev.target.result });
+            renderAttachedImages();
+        };
+        reader.readAsDataURL(file);
+    }
+    imageInput.value = "";
+});
+
+async function sendPrompt() {
+    if (!isAuthenticated) {
+        addMessage("Please login to generate images", "error");
+        return;
+    }
+
+    const prompt = promptInput.value.trim();
+    if (!prompt && attachedImages.length === 0) return;
+
+    promptInput.value = "";
+    promptInput.disabled = true;
+    sendBtn.disabled = true;
+    imageBtn.disabled = true;
+
+    const imagesToSend = attachedImages.map((img) => img.base64);
+    attachedImages = [];
+    renderAttachedImages();
+
+    addMessage(prompt, "user");
+    addMessage("", "loading");
+
+    try {
+        let url = `/api/v1/image/${currentSessionId}`;
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                prompt,
+                images: imagesToSend.length > 0 ? imagesToSend : null,
+            }),
+        });
+
+        const lastMessage = chatContainer.lastElementChild;
+        lastMessage.remove();
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || "Failed to generate image");
+        }
+
+        const data = await response.json();
+        addMessage(
+            "Here is your generated image:",
+            "assistant",
+            data.images[0],
+        );
+    } catch (error) {
+        const lastMessage = chatContainer.lastElementChild;
+        if (lastMessage && lastMessage.classList.contains("loading")) {
+            lastMessage.remove();
+        }
+        addMessage(error.message, "error");
+    } finally {
+        promptInput.disabled = false;
+        sendBtn.disabled = false;
+        imageBtn.disabled = false;
+        promptInput.focus();
+    }
+}
+
+sendBtn.addEventListener("click", sendPrompt);
+
+promptInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendPrompt();
+    }
+});

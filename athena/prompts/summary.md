@@ -1,0 +1,1 @@
+Based on the following conversation history, provide a brief summary that captures the key context and user intent for continuing the image generation task. Provide a concise 1-2 sentence summary that captures the essential context.

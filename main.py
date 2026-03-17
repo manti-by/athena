@@ -29,8 +29,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 templates_dir = Path(__file__).parent / "athena/templates"
-if templates_dir.exists():
-    app.mount("/static", StaticFiles(directory=templates_dir), name="static")
+static_dir = Path(__file__).parent / "athena/static"
+
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 app.include_router(auth_router)
 app.include_router(api_router)

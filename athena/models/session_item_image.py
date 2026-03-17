@@ -12,5 +12,5 @@ class SessionItemImage(Base, TimestampMixin):
     session_item_id: Mapped[int] = mapped_column(Integer, ForeignKey("session_items.id"), nullable=False)
     image_id: Mapped[int] = mapped_column(Integer, ForeignKey("images.id"), nullable=False)
 
-    session_item: Mapped["SessionItem"] = relationship(back_populates="images")  # noqa: F821
-    image: Mapped["Image"] = relationship(back_populates="session_items")  # noqa: F821
+    session_item: Mapped["SessionItem"] = relationship(back_populates="images")  # noqa: F821 # ty: ignore[unresolved-reference]
+    image: Mapped["Image"] = relationship(back_populates="session_items")  # noqa: F821 # ty: ignore[unresolved-reference]

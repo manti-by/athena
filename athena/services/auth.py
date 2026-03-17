@@ -3,6 +3,7 @@ from typing import Any
 
 import google.auth.transport.requests
 import requests
+from fastapi import Request
 from google.oauth2.id_token import verify_oauth2_token
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -112,3 +113,10 @@ async def get_current_user(session: AsyncSession, token: str | None) -> User | N
     stmt = select(User).where(User.id == token_data.user_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def get_user_from_request(request: Request, session: AsyncSession) -> User | None:
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    return await get_current_user(session, token)
