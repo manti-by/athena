@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from athena.models import Session, SessionItem, SessionItemImage, User
+from athena.models import ImageSource, Session, SessionItem, SessionItemImage, User
 from athena.schemas.api import PromptRequest
 from athena.services.summarizer import summarize_session
 from athena.services.upload import upload_images
@@ -30,7 +30,11 @@ def _extract_images(response: Any) -> list[str]:
     if not hasattr(message, "images") or not message.images:
         logger.warning("OpenRouter response message missing images")
         return []
-    return [x.image_url.url for x in message.images]
+    return [
+        x.image_url.url
+        for x in message.images
+        if hasattr(x, "image_url") and x.image_url and hasattr(x.image_url, "url")
+    ]
 
 
 async def generate_images(
@@ -47,7 +51,10 @@ async def generate_images(
         result = await session.execute(stmt)
         current_session = result.scalar_one_or_none()
 
-    if not current_session:
+        if not current_session:
+            raise ValueError(f"Session {session_id} not found or access denied")
+
+    else:
         current_session = Session(user_id=user.id)
         session.add(current_session)
         await session.commit()
@@ -95,7 +102,10 @@ async def generate_images(
     images = _extract_images(response)
     if images:
         for image in await upload_images(
-            session=session, images=images, prefix=f"session_{current_session.id}_generated_"
+            session=session,
+            images=images,
+            prefix=f"session_{current_session.id}_generated_",
+            source=ImageSource.OPENROUTER,
         ):
             session.add(SessionItemImage(session_item_id=session_item.id, image_id=image.id))
         await session.commit()

@@ -1,4 +1,5 @@
 import base64
+import logging
 import mimetypes
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,9 @@ from athena.models.mixins import TimestampMixin
 if TYPE_CHECKING:
     from athena.models.session import Session
     from athena.models.session_item_image import SessionItemImage
+
+
+logger = logging.getLogger(__name__)
 
 
 class SessionItem(Base, TimestampMixin):
@@ -33,8 +37,12 @@ class SessionItem(Base, TimestampMixin):
     async def get_image_data_list(self) -> list[str]:
         result = []
         for image in self.images:
-            async with aiofiles.open(image.image.file_path, "rb") as image_file:
-                image_bytes = await image_file.read()
+            try:
+                async with aiofiles.open(image.image.file_path, "rb") as image_file:
+                    image_bytes = await image_file.read()
+            except (FileNotFoundError, PermissionError) as e:
+                logger.warning(f"Could not read image file {image.image.file_path}: {e}")
+                continue
             encoded_bytes = base64.b64encode(image_bytes)
             encoded_string = encoded_bytes.decode("utf-8")
 
