@@ -7,8 +7,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from athena.api import auth_router, images_router, sessions_router
 from athena.models.base import Base
-from athena.routes import api_router, auth_router
 from athena.settings import get_settings
 
 
@@ -35,7 +35,8 @@ if static_dir.exists():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 app.include_router(auth_router)
-app.include_router(api_router)
+app.include_router(images_router)
+app.include_router(sessions_router)
 
 
 @app.get("/", response_class=HTMLResponse)

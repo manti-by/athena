@@ -1,8 +1,15 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from athena.models.base import Base
-from athena.models.mixings import TimestampMixin
+from athena.models.mixins import TimestampMixin
+
+
+if TYPE_CHECKING:
+    from athena.models.image import Image
+    from athena.models.session_item import SessionItem
 
 
 class SessionItemImage(Base, TimestampMixin):
@@ -12,5 +19,5 @@ class SessionItemImage(Base, TimestampMixin):
     session_item_id: Mapped[int] = mapped_column(Integer, ForeignKey("session_items.id"), nullable=False)
     image_id: Mapped[int] = mapped_column(Integer, ForeignKey("images.id"), nullable=False)
 
-    session_item: Mapped["SessionItem"] = relationship(back_populates="images")  # noqa: F821 # ty: ignore[unresolved-reference]
-    image: Mapped["Image"] = relationship(back_populates="session_items")  # noqa: F821 # ty: ignore[unresolved-reference]
+    session_item: Mapped["SessionItem"] = relationship(back_populates="images")
+    image: Mapped["Image"] = relationship(back_populates="session_items")

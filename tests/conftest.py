@@ -9,9 +9,10 @@ from athena.services.auth import create_access_token
 
 
 @pytest.fixture(autouse=True)
-def setup_test_env():
+def setup_test_env(tmp_path):
     os.environ["DATABASE_URL"] = "postgresql+asyncpg://athena:athena@localhost:5432/test_athena"
     os.environ["SECRET_KEY"] = "Lly1+DnfJus2zsl$?e1VJeV\\&r1eRs9hP"
+    os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
 
     from athena.settings import get_settings
 
@@ -21,7 +22,7 @@ def setup_test_env():
 
 
 @pytest.fixture(autouse=True, scope="function")
-def setup_db_user():
+def setup_db_user(setup_test_env):
     import asyncio
 
     from sqlalchemy import text
@@ -30,7 +31,9 @@ def setup_db_user():
     async def setup_db():
         engine = create_async_engine(os.environ["DATABASE_URL"])
         async with engine.begin() as conn:
-            await conn.execute(text("TRUNCATE TABLE session_item_images, session_items, sessions, users CASCADE"))
+            await conn.execute(
+                text("TRUNCATE TABLE session_item_images, session_items, sessions, users, images CASCADE")
+            )
             await conn.execute(
                 text(
                     "INSERT INTO users (id, email, name, google_id, avatar) VALUES (1, 'test@example.com', 'Test User', 'google123', 'https://example.com/avatar.png')"
@@ -40,8 +43,8 @@ def setup_db_user():
 
     asyncio.run(setup_db())
 
-    import athena.routes.api as api_module
-    import athena.routes.auth as auth_module
+    import athena.api.auth as auth_module
+    import athena.api.sessions as sessions_module
     import athena.services.database as db_module
     from athena.settings import get_settings
 
@@ -52,7 +55,7 @@ def setup_db_user():
         expire_on_commit=False,
     )
     db_module.async_session_maker = new_maker
-    api_module.async_session_maker = new_maker
+    sessions_module.async_session_maker = new_maker
     auth_module.async_session_maker = new_maker
 
     yield

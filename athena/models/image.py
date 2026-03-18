@@ -5,11 +5,11 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from athena.models.base import Base
-from athena.models.mixings import TimestampMixin
+from athena.models.mixins import TimestampMixin
 
 
 if TYPE_CHECKING:
-    from athena.models.session_item import SessionItemImage
+    from athena.models.session_item_image import SessionItemImage
 
 
 class ImageSource(enum.Enum):

@@ -11,7 +11,13 @@ async def summarize_session(input_text: str) -> str:
         return input_text
 
     try:
-        llm = ChatGroq(model=settings.GROQ_MODEL, temperature=0.1, max_tokens=2048, max_retries=2)
+        llm = ChatGroq(
+            groq_api_key=settings.GROQ_API_KEY,  # type: ignore[arg-type]
+            model=settings.GROQ_MODEL,
+            temperature=0.1,
+            max_tokens=2048,
+            max_retries=2,
+        )
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", await get_prompt(name="summary")),

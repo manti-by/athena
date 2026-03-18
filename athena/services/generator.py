@@ -1,3 +1,6 @@
+import logging
+from typing import Any
+
 from openrouter import OpenRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +13,24 @@ from athena.services.upload import upload_images
 from athena.settings import get_settings
 
 
+logger = logging.getLogger(__name__)
+
+
 settings = get_settings()
+
+
+def _extract_images(response: Any) -> list[str]:
+    if not hasattr(response, "choices") or not response.choices:
+        logger.warning("OpenRouter response missing or has empty choices")
+        return []
+    if not hasattr(response.choices[0], "message") or not response.choices[0].message:
+        logger.warning("OpenRouter response missing message in first choice")
+        return []
+    message = response.choices[0].message
+    if not hasattr(message, "images") or not message.images:
+        logger.warning("OpenRouter response message missing images")
+        return []
+    return [x.image_url.url for x in message.images]
 
 
 async def generate_images(
@@ -39,7 +59,7 @@ async def generate_images(
     stmt = select(Session).where(Session.id == current_session.id).options(selectinload(Session.items))
     result = await session.execute(stmt)
     current_session = result.scalar_one()
-    input_text = "\n".join([item.text for item in current_session.items])
+    input_text = "\n".join([item.text for item in current_session.items if item.text])
 
     text = prompt_request.prompt
     if summary := await summarize_session(input_text=input_text):
@@ -72,10 +92,13 @@ async def generate_images(
             modalities=["image"],
         )
 
-    images = [x.image_url.url for x in response.choices[0].message.images]
-    for image in await upload_images(session=session, images=images, prefix=f"session_{current_session.id}_generated_"):
-        session.add(SessionItemImage(session_item_id=session_item.id, image_id=image.id))
-    await session.commit()
+    images = _extract_images(response)
+    if images:
+        for image in await upload_images(
+            session=session, images=images, prefix=f"session_{current_session.id}_generated_"
+        ):
+            session.add(SessionItemImage(session_item_id=session_item.id, image_id=image.id))
+        await session.commit()
 
     stmt = (
         select(SessionItemModel)

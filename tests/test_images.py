@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from tests.conftest import get_authenticated_client, get_unauthenticated_client
 
@@ -11,11 +11,13 @@ class TestImageGeneration:
         image_mock.image_url.url = "https://example.com/image.jpg"
 
         response_mock = MagicMock()
-        response_mock.choices[0].message.images.return_value = [image_mock]
+        response_mock.choices[0].message.images = [image_mock]
 
         client_mock = MagicMock()
-        client_mock.chat.send_async.return_value = response_mock
-        router_mock.return_value = client_mock
+        client_mock.chat.send_async = AsyncMock(return_value=response_mock)
+
+        router_mock.return_value.__aenter__ = AsyncMock(return_value=client_mock)
+        router_mock.return_value.__aexit__ = AsyncMock(return_value=None)
 
         client = get_authenticated_client()
 

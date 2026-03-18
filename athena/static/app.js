@@ -19,6 +19,17 @@ const attachedImagesContainer = document.getElementById(
 let isAuthenticated = false;
 let currentSessionId = null;
 
+async function resetUI() {
+    userInfo.style.display = "none";
+    loginBtn.style.display = "block";
+    logoutBtn.style.display = "none";
+    sessionSelector.style.display = "none";
+    newSessionBtn.style.display = "none";
+    chatContainer.classList.add("hidden");
+    inputContainer.classList.add("hidden");
+    authPrompt.classList.remove("hidden");
+}
+
 async function checkAuth() {
     try {
         const response = await fetch("/api/v1/auth/me");
@@ -37,18 +48,11 @@ async function checkAuth() {
             authPrompt.classList.add("hidden");
             loadSessions();
         } else {
-            isAuthenticated = false;
-            userInfo.style.display = "none";
-            loginBtn.style.display = "block";
-            logoutBtn.style.display = "none";
-            sessionSelector.style.display = "none";
-            newSessionBtn.style.display = "none";
-            chatContainer.classList.add("hidden");
-            inputContainer.classList.add("hidden");
-            authPrompt.classList.remove("hidden");
+            resetUI();
         }
     } catch (e) {
         isAuthenticated = false;
+        resetUI();
     }
 }
 
@@ -64,6 +68,10 @@ logoutBtn.addEventListener("click", async () => {
 async function loadSessions() {
     try {
         const response = await fetch("/api/v1/sessions/");
+        if (!response.ok) {
+            throw new Error("Failed to load sessions");
+        }
+
         const sessions = await response.json();
         sessionSelector.innerHTML = '<option value="">New Session</option>';
         sessions.forEach((session) => {
@@ -87,6 +95,10 @@ async function createNewSession() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
         });
+        if (!response.ok) {
+            throw new Error("Failed to load sessions");
+        }
+
         const session = await response.json();
         currentSessionId = session.id;
         chatContainer.innerHTML = "";
@@ -98,8 +110,12 @@ async function createNewSession() {
 }
 
 sessionSelector.addEventListener("change", (e) => {
-    currentSessionId = e.target.value ? parseInt(e.target.value) : null;
+    currentSessionId = e.target.value ? parseInt(e.target.value, 10) : null;
     chatContainer.innerHTML = "";
+    if (currentSessionId) {
+        // TODO: Load messages for the selected session
+        // loadSessionMessages(currentSessionId);
+    }
 });
 
 newSessionBtn.addEventListener("click", createNewSession);
@@ -197,19 +213,32 @@ async function sendPrompt() {
     if (!prompt && attachedImages.length === 0) return;
 
     promptInput.value = "";
+    promptInput.style.height = "auto";
     promptInput.disabled = true;
     sendBtn.disabled = true;
     imageBtn.disabled = true;
 
+    if (!currentSessionId) {
+        addMessage("Please select or create a session first", "error");
+        promptInput.disabled = false;
+        sendBtn.disabled = false;
+        imageBtn.disabled = false;
+        return;
+    }
+
     const imagesToSend = attachedImages.map((img) => img.base64);
+
+    addMessage(prompt, "user");
+
     attachedImages = [];
     renderAttachedImages();
 
-    addMessage(prompt, "user");
     addMessage("", "loading");
 
     try {
-        let url = `/api/v1/image/${currentSessionId}`;
+        let url = currentSessionId
+            ? `/api/v1/image/${currentSessionId}`
+            : "/api/v1/image";
         const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -228,6 +257,11 @@ async function sendPrompt() {
         }
 
         const data = await response.json();
+        if (!Array.isArray(data.images) || data.images.length === 0) {
+            console.error("Unexpected API response:", data);
+            addMessage("No images returned from API", "error");
+            return;
+        }
         addMessage(
             "Here is your generated image:",
             "assistant",
@@ -254,4 +288,9 @@ promptInput.addEventListener("keydown", (e) => {
         e.preventDefault();
         sendPrompt();
     }
+});
+
+promptInput.addEventListener("input", function () {
+    this.style.height = "auto";
+    this.style.height = Math.min(this.scrollHeight, 150) + "px";
 });

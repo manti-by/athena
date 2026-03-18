@@ -2,7 +2,7 @@ from sqlalchemy import ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from athena.models.base import Base
-from athena.models.mixings import TimestampMixin
+from athena.models.mixins import TimestampMixin
 from athena.models.session_item import SessionItem
 
 

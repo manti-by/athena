@@ -23,9 +23,15 @@ def upgrade() -> None:
     op.execute("CREATE TYPE imagesource AS ENUM ('USER', 'OPENROUTER')")
     op.add_column(
         "images",
-        sa.Column("source", sa.Enum("USER", "OPENROUTER", name="imagesource"), nullable=False, server_default="USER"),
+        sa.Column(
+            "source",
+            sa.Enum("USER", "OPENROUTER", name="imagesource", createtype=False),
+            nullable=False,
+            server_default="USER",
+        ),
     )
 
 
 def downgrade() -> None:
     op.drop_column("images", "source")
+    sa.Enum(name="imagesource").drop(op.get_bind(), checkfirst=True)

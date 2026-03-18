@@ -2,7 +2,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from athena.models.base import Base
-from athena.models.mixings import TimestampMixin
+from athena.models.mixins import TimestampMixin
 
 
 class User(Base, TimestampMixin):

@@ -1,11 +1,13 @@
 import base64
+import mimetypes
 from typing import TYPE_CHECKING
 
+import aiofiles
 from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from athena.models.base import Base
-from athena.models.mixings import TimestampMixin
+from athena.models.mixins import TimestampMixin
 
 
 if TYPE_CHECKING:
@@ -31,9 +33,12 @@ class SessionItem(Base, TimestampMixin):
     async def get_image_data_list(self) -> list[str]:
         result = []
         for image in self.images:
-            with open(image.image.file_path, "rb") as image_file:
-                image_bytes = image_file.read()
+            async with aiofiles.open(image.image.file_path, "rb") as image_file:
+                image_bytes = await image_file.read()
             encoded_bytes = base64.b64encode(image_bytes)
             encoded_string = encoded_bytes.decode("utf-8")
-            result.append(f"data:image/jpeg;base64,{encoded_string}")
+
+            mime_type, _ = mimetypes.guess_type(image.image.file_path)
+            mime_type = mime_type or "image/jpeg"
+            result.append(f"data:{mime_type};base64,{encoded_string}")
         return result
