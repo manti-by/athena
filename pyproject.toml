@@ -1,32 +1,36 @@
 [project]
 name = "athena"
-version = "0.2.1"
+version = "0.2.2"
 description = "Nano Banana simple chat wrapper"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "fastapi>=0.135.1",
-    "ipython>=9.10.0",
-    "openrouter>=0.7.11",
-    "uvicorn>=0.41.0",
-    "sqlalchemy[asyncio]>=2.0.0",
+    "aiofiles>=25.1.0",
     "asyncpg>=0.30.0",
-    "python-jose[cryptography]>=3.3.0",
+    "httpx>=0.28.0",
+    "fastapi>=0.135.1",
     "google-auth>=2.36.0",
+    "ipython>=9.10.0",
+    "itsdangerous>=2.2.0",
+    "langchain-groq>=0.2.0",
+    "langchain-core>=1.2.19",
+    "openrouter>=0.7.11",
+    "python-jose[cryptography]>=3.3.0",
     "pydantic-settings>=2.7.0",
     "passlib[bcrypt]>=1.7.4",
-    "itsdangerous>=2.2.0",
-    "httpx>=0.28.0",
+    "sqlalchemy[asyncio]>=2.0.0",
     "requests>=2.32.0",
+    "uvicorn>=0.41.0",
 ]
 
 [dependency-groups]
 dev = [
+    "alembic>=1.15.0",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.25.2",
     "ruff>=0.15.4",
     "ty>=0.0.20",
-    "alembic>=1.15.0",
 ]
 
 [tool.pytest.ini_options]
@@ -137,4 +141,5 @@ exclude = [
     ".pytest_cache",
     ".ruff_cache",
     ".venv",
+    "alembic"
 ]

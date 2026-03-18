@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+from pathlib import Path
 
 
 @lru_cache
@@ -8,6 +9,8 @@ def get_settings() -> "Settings":
 
 
 class Settings:
+    BASE_PATH = Path(__file__).resolve().parent.parent
+
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
@@ -15,6 +18,11 @@ class Settings:
     DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/athena")
 
     OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
+    UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/var/lib/athena/uploads")
+
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+    GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
 
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")

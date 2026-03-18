@@ -1,0 +1,52 @@
+import base64
+import logging
+import mimetypes
+from typing import TYPE_CHECKING
+
+import aiofiles
+from sqlalchemy import ForeignKey, Integer, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from athena.models.base import Base
+from athena.models.mixins import TimestampMixin
+
+
+if TYPE_CHECKING:
+    from athena.models.session import Session
+    from athena.models.session_item_image import SessionItemImage
+
+
+logger = logging.getLogger(__name__)
+
+
+class SessionItem(Base, TimestampMixin):
+    __tablename__ = "session_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(Integer, ForeignKey("sessions.id"), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    session: Mapped["Session"] = relationship(back_populates="items")  # noqa: F821
+    images: Mapped[list["SessionItemImage"]] = relationship(  # noqa: F821
+        back_populates="session_item", cascade="all, delete-orphan"
+    )
+
+    async def get_image_data_for_context(self) -> list[dict]:
+        return [{"type": "image_url", "image_url": {"url": x}} for x in await self.get_image_data_list()]
+
+    async def get_image_data_list(self) -> list[str]:
+        result = []
+        for image in self.images:
+            try:
+                async with aiofiles.open(image.image.file_path, "rb") as image_file:
+                    image_bytes = await image_file.read()
+            except (FileNotFoundError, PermissionError) as e:
+                logger.warning(f"Could not read image file {image.image.file_path}: {e}")
+                continue
+            encoded_bytes = base64.b64encode(image_bytes)
+            encoded_string = encoded_bytes.decode("utf-8")
+
+            mime_type, _ = mimetypes.guess_type(image.image.file_path)
+            mime_type = mime_type or "image/jpeg"
+            result.append(f"data:{mime_type};base64,{encoded_string}")
+        return result
