@@ -49,8 +49,12 @@ def setup_db_user(setup_test_env):
     from athena.settings import get_settings
 
     settings = get_settings()
+    original_db_maker = db_module.async_session_maker
+    original_sessions_maker = sessions_module.async_session_maker
+    original_auth_maker = auth_module.async_session_maker
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
     new_maker = async_sessionmaker(
-        create_async_engine(settings.DATABASE_URL, echo=False),
+        engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
@@ -59,6 +63,11 @@ def setup_db_user(setup_test_env):
     auth_module.async_session_maker = new_maker
 
     yield
+
+    db_module.async_session_maker = original_db_maker
+    sessions_module.async_session_maker = original_sessions_maker
+    auth_module.async_session_maker = original_auth_maker
+    asyncio.run(engine.dispose())
 
 
 def create_auth_token(user_id: int, email: str) -> str:
