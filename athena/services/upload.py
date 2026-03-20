@@ -1,7 +1,9 @@
+import asyncio
 import tempfile
 import uuid
 from pathlib import Path
 
+import httpx
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,8 +56,37 @@ async def upload_images(
     for idx, image in enumerate(images):
         image_bytes = validate_base64_image(image)
         if image_bytes is None:
-            validation_errors.append({"index": idx, "error": "Invalid base64 image data or unsupported image format"})
-            continue
+            if image.startswith("http://") or image.startswith("https://"):
+                try:
+                    response = httpx.get(image, timeout=10)
+                    response.raise_for_status()
+                    image_bytes = response.content
+                except (httpx.HTTPError, httpx.TimeoutException):
+                    validation_errors.append({"index": idx, "error": "Failed to download image from URL"})
+                    continue
+                if not (
+                    any(image_bytes.startswith(sig) for sig in _MAGIC_BYTES_TO_EXT)
+                    or (image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP")
+                ):
+                    validation_errors.append({"index": idx, "error": "Downloaded image has unsupported format"})
+                    continue
+            elif image.startswith("data:"):
+                if ";base64," in image:
+                    image = image.split(";base64,", 1)[1]
+                    image_bytes = validate_base64_image(image)
+                    if image_bytes is None:
+                        validation_errors.append(
+                            {"index": idx, "error": "Invalid base64 image data or unsupported image format"}
+                        )
+                        continue
+                else:
+                    validation_errors.append({"index": idx, "error": "Unsupported data URL format"})
+                    continue
+            else:
+                validation_errors.append(
+                    {"index": idx, "error": "Invalid base64 image data or unsupported image format"}
+                )
+                continue
 
         file_ext = _detect_extension(image_bytes)
         file_name = f"{prefix}_{uuid.uuid4()}.{file_ext}" if prefix else f"{uuid.uuid4()}.{file_ext}"
@@ -86,12 +117,14 @@ async def upload_images(
         def on_commit(_session: AsyncSession) -> None:
             for tmp_path, file_path in pending:
                 tmp_path.rename(file_path)
-            event.remove(session.sync_session, "after_commit", on_commit)
+            loop = asyncio.get_event_loop()
+            loop.call_soon(lambda: event.remove(session.sync_session, "after_commit", on_commit))
 
         def on_rollback(_session: AsyncSession) -> None:
             for tmp_path, _ in pending:
                 tmp_path.unlink(missing_ok=True)
-            event.remove(session.sync_session, "after_rollback", on_rollback)
+            loop = asyncio.get_event_loop()
+            loop.call_soon(lambda: event.remove(session.sync_session, "after_rollback", on_rollback))
 
         event.listen(session.sync_session, "after_commit", on_commit)
         event.listen(session.sync_session, "after_rollback", on_rollback)

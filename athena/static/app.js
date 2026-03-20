@@ -12,6 +12,7 @@ const inputContainer = document.getElementById("input-container");
 const authPrompt = document.getElementById("auth-prompt");
 const sessionSelector = document.getElementById("session-selector");
 const newSessionBtn = document.getElementById("new-session-btn");
+const deleteSessionBtn = document.getElementById("delete-session-btn");
 const attachedImagesContainer = document.getElementById(
     "attached-images-container",
 );
@@ -102,6 +103,7 @@ async function createNewSession() {
         const session = await response.json();
         currentSessionId = session.id;
         chatContainer.innerHTML = "";
+        deleteSessionBtn.style.display = "block";
         await loadSessions();
         sessionSelector.value = currentSessionId;
     } catch (e) {
@@ -112,11 +114,59 @@ async function createNewSession() {
 sessionSelector.addEventListener("change", (e) => {
     currentSessionId = e.target.value ? parseInt(e.target.value, 10) : null;
     chatContainer.innerHTML = "";
+    deleteSessionBtn.style.display = currentSessionId ? "block" : "none";
     if (currentSessionId) {
-        // TODO: Load messages for the selected session
-        // loadSessionMessages(currentSessionId);
+        loadSessionMessages(currentSessionId);
     }
 });
+
+deleteSessionBtn.addEventListener("click", async () => {
+    if (!currentSessionId) return;
+    if (!confirm("Are you sure you want to delete this session? This cannot be undone.")) return;
+
+    try {
+        const response = await fetch(`/api/v1/sessions/${currentSessionId}`, {
+            method: "DELETE",
+        });
+        if (!response.ok) {
+            throw new Error("Failed to delete session");
+        }
+        currentSessionId = null;
+        chatContainer.innerHTML = "";
+        deleteSessionBtn.style.display = "none";
+        sessionSelector.value = "";
+        await loadSessions();
+    } catch (e) {
+        console.error("Failed to delete session:", e);
+    }
+});
+
+async function loadSessionMessages(sessionId) {
+    try {
+        const response = await fetch(`/api/v1/sessions/${sessionId}`);
+        if (!response.ok) {
+            throw new Error("Failed to load session messages");
+        }
+
+        const session = await response.json();
+        for (const item of session.items) {
+            const userImages = item.images
+                .filter((img) => img.source === "USER")
+                .map((img) => ({ src: img.file_path }));
+            addMessage(item.text, "user", null, userImages);
+
+            if (item.images && item.images.length > 0) {
+                for (const img of item.images) {
+                    if (img.source === "OPENROUTER") {
+                        addMessage("Generated image:", "assistant", img.file_path);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Failed to load session messages:", e);
+    }
+}
 
 newSessionBtn.addEventListener("click", createNewSession);
 
@@ -124,7 +174,7 @@ checkAuth();
 
 let attachedImages = [];
 
-function addMessage(content, type, imageData = null) {
+function addMessage(content, type, imageData = null, userImages = null) {
     const messageDiv = document.createElement("div");
     messageDiv.className = `message ${type}`;
 
@@ -133,12 +183,13 @@ function addMessage(content, type, imageData = null) {
     } else if (type === "error") {
         messageDiv.textContent = content;
     } else {
-        if (type === "user" && attachedImages.length > 0) {
+        const imagesToShow = userImages || (type === "user" ? attachedImages : null);
+        if (imagesToShow && imagesToShow.length > 0) {
             const imgContainer = document.createElement("div");
             imgContainer.className = "attached-images";
-            attachedImages.forEach((img, idx) => {
+            imagesToShow.forEach((img) => {
                 const imgEl = document.createElement("img");
-                imgEl.src = img.preview;
+                imgEl.src = img.src || img.preview;
                 imgEl.style.width = "60px";
                 imgEl.style.height = "60px";
                 imgEl.style.objectFit = "cover";

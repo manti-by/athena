@@ -2,12 +2,14 @@ import logging
 from typing import Any
 
 from openrouter import OpenRouter
+from openrouter.components import ChatResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from athena.models import ImageSource, Session, SessionItem, SessionItemImage, User
 from athena.schemas.api import PromptRequest
+from athena.services.image import read_image_mimetype_and_data
 from athena.services.summarizer import summarize_session
 from athena.services.upload import upload_images
 from athena.settings import get_settings
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-def _extract_images(response: Any) -> list[str]:
+def extract_images(response: Any) -> list[str]:
     if not hasattr(response, "choices") or not response.choices:
         logger.warning("OpenRouter response missing or has empty choices")
         return []
@@ -80,12 +82,10 @@ async def generate_images(
             session.add(SessionItemImage(session_item_id=session_item.id, image_id=image.id))
         await session.commit()
 
-    from athena.models import SessionItem as SessionItemModel
-
     stmt = (
-        select(SessionItemModel)
-        .where(SessionItemModel.id == session_item.id)
-        .options(selectinload(SessionItemModel.images).selectinload(SessionItemImage.image))
+        select(SessionItem)
+        .where(SessionItem.id == session_item.id)
+        .options(selectinload(SessionItem.images).selectinload(SessionItemImage.image))
     )
     result = await session.execute(stmt)
     session_item = result.scalar_one()
@@ -93,29 +93,28 @@ async def generate_images(
         content.extend(await session_item.get_image_data_for_context())
 
     async with OpenRouter(api_key=settings.OPENROUTER_API_KEY) as client:
-        response = await client.chat.send_async(
+        response: ChatResponse = await client.chat.send_async(
             model="google/gemini-3-pro-image-preview",
             messages=[{"role": "user", "content": content}],
             modalities=["image"],
+            session_id=str(current_session.id),
         )
 
-    images = _extract_images(response)
-    if images:
+    result_images = []
+    if images := extract_images(response):
         for image in await upload_images(
             session=session,
             images=images,
             prefix=f"session_{current_session.id}_generated_",
             source=ImageSource.OPENROUTER,
         ):
-            session.add(SessionItemImage(session_item_id=session_item.id, image_id=image.id))
+            item_image = SessionItemImage(session_item_id=session_item.id, image_id=image.id)
+            session.add(item_image)
+
+            if image_data := await read_image_mimetype_and_data(image_path=image.file_path):
+                mime_type, encoded_string = image_data
+                result_images.append(f"data:{mime_type};base64,{encoded_string}")
+
         await session.commit()
 
-    stmt = (
-        select(SessionItemModel)
-        .where(SessionItemModel.id == session_item.id)
-        .options(selectinload(SessionItemModel.images).selectinload(SessionItemImage.image))
-    )
-    result = await session.execute(stmt)
-    session_item = result.scalar_one()
-
-    return {"images": await session_item.get_image_data_list()}
+    return {"images": result_images}

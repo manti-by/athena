@@ -35,3 +35,7 @@ migrate-down:
 	uv run alembic downgrade -1
 
 ci: pip check check test
+
+
+bash:
+	docker compose exec -it app bash
