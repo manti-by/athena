@@ -30,9 +30,13 @@ app = FastAPI(lifespan=lifespan)
 
 templates_dir = Path(__file__).parent / "athena/templates"
 static_dir = Path(__file__).parent / "athena/static"
+upload_dir = Path(settings.UPLOAD_DIR)
 
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+if upload_dir.exists():
+    app.mount("/media", StaticFiles(directory=upload_dir), name="media")
 
 app.include_router(auth_router)
 app.include_router(images_router)

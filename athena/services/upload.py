@@ -40,12 +40,6 @@ def _detect_extension(image_bytes: bytes) -> str:
 settings = get_settings()
 
 
-def get_upload_dir() -> Path:
-    upload_dir = Path(settings.UPLOAD_DIR)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    return upload_dir
-
-
 async def upload_images(
     session: AsyncSession, images: list[str], prefix: str | None = None, source: ImageSource = ImageSource.USER
 ) -> list[Image]:
@@ -90,9 +84,9 @@ async def upload_images(
 
         file_ext = _detect_extension(image_bytes)
         file_name = f"{prefix}_{uuid.uuid4()}.{file_ext}" if prefix else f"{uuid.uuid4()}.{file_ext}"
-        file_path = get_upload_dir() / file_name
+        file_name = f"uploads/{file_name}"
 
-        tmp = tempfile.NamedTemporaryFile(dir=get_upload_dir(), delete=False, suffix=".tmp")
+        tmp = tempfile.NamedTemporaryFile(dir=settings.UPLOAD_DIR, delete=False, suffix=".tmp")
         try:
             tmp.write(image_bytes)
             tmp.close()
@@ -101,8 +95,8 @@ async def upload_images(
             tmp.close()
             raise
 
-        pending.append((tmp_path, file_path))
-        new_image = Image(file_path=str(file_path), source=source)
+        pending.append((tmp_path, Path(settings.UPLOAD_DIR) / file_name))
+        new_image = Image(file_path=file_name, source=source)
         session.add(new_image)
         result.append(new_image)
 

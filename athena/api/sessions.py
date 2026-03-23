@@ -71,10 +71,11 @@ async def get_session(request: Request, session_id: int) -> SessionDetailRespons
         for item in db_session.items:
             item_images = []
             for si_image in item.images:
+                file_name = Path(si_image.image.file_path).name
                 item_images.append(
                     SessionItemImageResponse(
                         id=si_image.image.id,
-                        file_path=f"/api/v1/image/file/{si_image.image.id}",
+                        file_path=f"/media/{file_name}",
                         source=si_image.image.source.value,
                         created_at=si_image.image.created_at,
                     )

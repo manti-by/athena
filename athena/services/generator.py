@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any
 
 from openrouter import OpenRouter
@@ -9,7 +10,6 @@ from sqlalchemy.orm import selectinload
 
 from athena.models import ImageSource, Session, SessionItem, SessionItemImage, User
 from athena.schemas.api import PromptRequest
-from athena.services.image import read_image_mimetype_and_data
 from athena.services.summarizer import summarize_session
 from athena.services.upload import upload_images
 from athena.settings import get_settings
@@ -110,10 +110,7 @@ async def generate_images(
         ):
             item_image = SessionItemImage(session_item_id=session_item.id, image_id=image.id)
             session.add(item_image)
-
-            if image_data := await read_image_mimetype_and_data(image_path=image.file_path):
-                mime_type, encoded_string = image_data
-                result_images.append(f"data:{mime_type};base64,{encoded_string}")
+            result_images.append(f"/media/{Path(image.file_path).name}")
 
         await session.commit()
 

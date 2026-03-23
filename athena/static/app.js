@@ -179,7 +179,7 @@ function addMessage(content, type, imageData = null, userImages = null) {
     messageDiv.className = `message ${type}`;
 
     if (type === "loading") {
-        messageDiv.textContent = "Generating image...";
+        messageDiv.innerHTML = '<div class="loading-spinner"></div><span>Generating image...</span>';
     } else if (type === "error") {
         messageDiv.textContent = content;
     } else {

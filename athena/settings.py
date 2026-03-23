@@ -19,7 +19,7 @@ class Settings:
 
     OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
-    UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/var/lib/athena/uploads")
+    UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/var/lib/athena")
 
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
     GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")

@@ -27,6 +27,8 @@ services:
       - LOG_PATH=/var/log/app/athena.log
     volumes:
       - .:/srv/app/src/
+      - ./media/:/var/lib/app/
+      - ./logs/:/var/log/app/
     depends_on:
       - postgres
 
