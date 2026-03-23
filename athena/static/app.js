@@ -16,6 +16,7 @@ const deleteSessionBtn = document.getElementById("delete-session-btn");
 const attachedImagesContainer = document.getElementById(
     "attached-images-container",
 );
+const authLoginBtn = document.getElementById("auth-login-btn");
 
 let isAuthenticated = false;
 let currentSessionId = null;
@@ -58,6 +59,10 @@ async function checkAuth() {
 }
 
 loginBtn.addEventListener("click", () => {
+    window.location.href = "/api/v1/auth/google/login";
+});
+
+authLoginBtn.addEventListener("click", () => {
     window.location.href = "/api/v1/auth/google/login";
 });
 
@@ -179,7 +184,7 @@ function addMessage(content, type, imageData = null, userImages = null) {
     messageDiv.className = `message ${type}`;
 
     if (type === "loading") {
-        messageDiv.innerHTML = '<div class="loading-spinner"></div><span>Generating image...</span>';
+        messageDiv.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div><span>Creating...</span>';
     } else if (type === "error") {
         messageDiv.textContent = content;
     } else {
