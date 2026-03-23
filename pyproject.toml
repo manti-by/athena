@@ -1,7 +1,7 @@
 [project]
 name = "athena"
 version = "1.0.0"
-description = "Nano Banana simple chat wrapper"
+description = "FastAPI-based chat application with AI image generation powered by OpenRouter and Groq"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
