@@ -84,8 +84,6 @@ async def upload_images(
 
         file_ext = _detect_extension(image_bytes)
         file_name = f"{prefix}_{uuid.uuid4()}.{file_ext}" if prefix else f"{uuid.uuid4()}.{file_ext}"
-        file_name = f"uploads/{file_name}"
-
         tmp = tempfile.NamedTemporaryFile(dir=settings.UPLOAD_DIR, delete=False, suffix=".tmp")
         try:
             tmp.write(image_bytes)
@@ -106,7 +104,7 @@ async def upload_images(
         raise ImageValidationError(validation_errors)
 
     if pending:
-        await session.flush()
+        await session.commit()
 
         def on_commit(_session: AsyncSession) -> None:
             for tmp_path, file_path in pending:

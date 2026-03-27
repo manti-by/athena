@@ -1,8 +1,16 @@
 import os
+import tempfile
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import create_async_engine
+
+
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://athena:athena@localhost:5432/test_athena")
+os.environ.setdefault("SECRET_KEY", "Lly1+DnfJus2zsl$?e1VJeV\\&r1eRs9hP")
+os.environ.setdefault("UPLOAD_DIR", tempfile.mkdtemp())
+os.environ.setdefault("LOG_PATH", f"{tempfile.gettempdir()}/test_athena.log")
 
 from athena.models.user import User
 from athena.services.auth import create_access_token
@@ -13,6 +21,7 @@ def setup_test_env(tmp_path):
     os.environ["DATABASE_URL"] = "postgresql+asyncpg://athena:athena@localhost:5432/test_athena"
     os.environ["SECRET_KEY"] = "Lly1+DnfJus2zsl$?e1VJeV\\&r1eRs9hP"
     os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
+    os.environ["LOG_PATH"] = str(tmp_path / "test_athena.log")
 
     from athena.settings import get_settings
 
@@ -26,7 +35,6 @@ def setup_db_user(setup_test_env):
     import asyncio
 
     from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     async def setup_db():
         engine = create_async_engine(os.environ["DATABASE_URL"])
@@ -43,31 +51,7 @@ def setup_db_user(setup_test_env):
 
     asyncio.run(setup_db())
 
-    import athena.api.auth as auth_module
-    import athena.api.sessions as sessions_module
-    import athena.services.database as db_module
-    from athena.settings import get_settings
-
-    settings = get_settings()
-    original_db_maker = db_module.async_session_maker
-    original_sessions_maker = sessions_module.async_session_maker
-    original_auth_maker = auth_module.async_session_maker
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    new_maker = async_sessionmaker(
-        engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    db_module.async_session_maker = new_maker
-    sessions_module.async_session_maker = new_maker
-    auth_module.async_session_maker = new_maker
-
     yield
-
-    db_module.async_session_maker = original_db_maker
-    sessions_module.async_session_maker = original_sessions_maker
-    auth_module.async_session_maker = original_auth_maker
-    asyncio.run(engine.dispose())
 
 
 def create_auth_token(user_id: int, email: str) -> str:

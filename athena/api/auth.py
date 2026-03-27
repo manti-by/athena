@@ -10,7 +10,6 @@ from athena.services.auth import (
     get_google_user_info,
     get_or_create_user,
 )
-from athena.services.database import async_session_maker
 
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -24,42 +23,42 @@ async def google_login():
 
 @router.get("/google/callback")
 async def google_callback(code: str, request: Request):
-    async with async_session_maker() as session:
-        tokens = exchange_code_for_tokens(code)
-        id_token = tokens["id_token"]
-        google_info = get_google_user_info(id_token)
+    tokens = exchange_code_for_tokens(code=code)
+    id_token = tokens["id_token"]
 
-        user = await get_or_create_user(session, google_info)
+    google_info = get_google_user_info(id_token)
+    user = await get_or_create_user(google_info=google_info)
 
-        token_data = TokenData(user_id=user.id, email=user.email)
-        access_token = create_access_token(token_data.model_dump())
+    token_data = TokenData(user_id=user.id, email=user.email)
+    access_token = create_access_token(data=token_data.model_dump())
 
-        response = RedirectResponse(url="/")
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            samesite="lax",
-        )
-        return response
+    response = RedirectResponse(url="/")
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+    )
+    return response
 
 
 @router.get("/me")
 async def get_me(request: Request):
-    async with async_session_maker() as session:
-        token = request.cookies.get("access_token")
-        user = await get_current_user(session, token)
-        if not user:
-            return {"authenticated": False}
-        return {
-            "authenticated": True,
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "avatar_url": user.avatar,
-            },
-        }
+    if not (token := request.cookies.get("access_token")):
+        return {"authenticated": False}
+
+    if not (user := await get_current_user(token=token)):
+        return {"authenticated": False}
+
+    return {
+        "authenticated": True,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "avatar_url": user.avatar,
+        },
+    }
 
 
 @router.post("/logout")

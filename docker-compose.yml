@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:18
     restart: unless-stopped
+    ports:
+      - "54321:5432"
     environment:
       - POSTGRES_USER=athena
       - POSTGRES_PASSWORD=athena

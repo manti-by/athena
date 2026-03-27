@@ -1,0 +1,2 @@
+class AthenaException(Exception):
+    pass

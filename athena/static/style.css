@@ -223,6 +223,50 @@ h1 {
     background: var(--bg-secondary);
     border-radius: 100px;
     border: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+}
+
+.user-info:hover {
+    border-color: var(--border-hover);
+}
+
+.user-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 160px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    z-index: 200;
+}
+
+.user-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: left;
+}
+
+.dropdown-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
 }
 
 .user-avatar {
@@ -292,7 +336,9 @@ h1 {
     background: linear-gradient(135deg, var(--accent) 0%, #b89858 100%);
     color: #0d0d0f;
     border-bottom-right-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md), 0 0 30px var(--accent-soft);
+    box-shadow:
+        var(--shadow-md),
+        0 0 30px var(--accent-soft);
 }
 
 .message.user::before {
@@ -490,7 +536,9 @@ h1 {
 }
 
 #image-btn {
-    padding: 0.75rem;
+    padding: 0;
+    width: 50px;
+    height: 50px;
     background: var(--bg-secondary);
     color: var(--text-secondary);
     border: 1px solid var(--border);
@@ -529,9 +577,10 @@ h1 {
     font-size: 0.95rem;
     font-family: var(--font-body);
     resize: none;
+    height: 50px;
     min-height: 50px;
     max-height: 160px;
-    line-height: 1.5;
+    line-height: 1.3;
     transition: var(--transition);
 }
 
@@ -543,14 +592,18 @@ h1 {
 #prompt-input:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft), 0 0 20px var(--accent-soft);
+    box-shadow:
+        0 0 0 3px var(--accent-soft),
+        0 0 20px var(--accent-soft);
 }
 
 #send-btn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     padding: 0.875rem 1.375rem;
+    height: 50px;
     background: linear-gradient(135deg, var(--accent) 0%, #b89858 100%);
     color: #0d0d0f;
     border: none;
@@ -564,7 +617,11 @@ h1 {
 }
 
 #send-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent) 100%);
+    background: linear-gradient(
+        135deg,
+        var(--accent-hover) 0%,
+        var(--accent) 100%
+    );
     transform: translateY(-1px);
     box-shadow: 0 0 24px var(--accent-soft);
 }
@@ -606,7 +663,11 @@ h1 {
     justify-content: center;
     padding: 3rem 2rem;
     text-align: center;
-    background: radial-gradient(ellipse at center, var(--bg-secondary) 0%, var(--bg-primary) 70%);
+    background: radial-gradient(
+        ellipse at center,
+        var(--bg-secondary) 0%,
+        var(--bg-primary) 70%
+    );
 }
 
 .auth-content {
@@ -674,7 +735,11 @@ h1 {
 }
 
 #auth-login-btn:hover {
-    background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent) 100%);
+    background: linear-gradient(
+        135deg,
+        var(--accent-hover) 0%,
+        var(--accent) 100%
+    );
     transform: translateY(-2px);
     box-shadow: 0 0 30px var(--accent-soft);
 }

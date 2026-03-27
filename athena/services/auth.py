@@ -7,10 +7,10 @@ from fastapi import Request
 from google.oauth2.id_token import verify_oauth2_token
 from jose import JWTError, jwt
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from athena.models.user import User
 from athena.schemas.google import GoogleUserInfo, TokenData
+from athena.services.database import async_session_maker
 from athena.settings import get_settings
 
 
@@ -76,47 +76,46 @@ def get_google_user_info(id_token: str) -> GoogleUserInfo:
     )
 
 
-async def get_or_create_user(session: AsyncSession, google_info: GoogleUserInfo) -> User:
-    stmt = select(User).where(User.google_id == google_info.id)
-    result = await session.execute(stmt)
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        stmt = select(User).where(User.email == google_info.email)
+async def get_or_create_user(google_info: GoogleUserInfo) -> User:
+    async with async_session_maker() as session:
+        stmt = select(User).where(User.google_id == google_info.id)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
 
         if user is None:
-            user = User(
-                google_id=google_info.id,
-                email=google_info.email,
-                name=google_info.name,
-                avatar=google_info.picture,
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-        else:
-            user.google_id = google_info.id
-            user.avatar = google_info.picture
-            await session.commit()
+            stmt = select(User).where(User.email == google_info.email)
+            result = await session.execute(stmt)
+            user = result.scalar_one_or_none()
 
-    return user
+            if user is None:
+                user = User(
+                    google_id=google_info.id,
+                    email=google_info.email,
+                    name=google_info.name,
+                    avatar=google_info.picture,
+                )
+                session.add(user)
+                await session.commit()
+                await session.refresh(user)
+            else:
+                user.google_id = google_info.id
+                user.avatar = google_info.picture
+                await session.commit()
+
+        return user
 
 
-async def get_current_user(session: AsyncSession, token: str | None) -> User | None:
-    if not token:
+async def get_current_user(token: str) -> User | None:
+    if not (token_data := verify_token(token)):
         return None
-    token_data = verify_token(token)
-    if not token_data:
-        return None
+
     stmt = select(User).where(User.id == token_data.user_id)
-    result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    async with async_session_maker() as session:
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
 
-async def get_user_from_request(request: Request, session: AsyncSession) -> User | None:
-    token = request.cookies.get("access_token")
-    if not token:
+async def get_user_from_request(request: Request) -> User | None:
+    if not (token := request.cookies.get("access_token")):
         return None
-    return await get_current_user(session, token)
+    return await get_current_user(token=token)

@@ -4,13 +4,13 @@ from typing import Any
 
 from openrouter import OpenRouter
 from openrouter.components import ChatResponse
+from openrouter.errors import BadRequestResponseError
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from athena.models import ImageSource, Session, SessionItem, SessionItemImage, User
-from athena.schemas.api import PromptRequest
-from athena.services.summarizer import summarize_session
+from athena.exceptions import AthenaException
+from athena.models import ImageSource, Session, SessionItem, SessionItemImage
+from athena.services.database import async_session_maker
 from athena.services.upload import upload_images
 from athena.settings import get_settings
 
@@ -39,79 +39,48 @@ def extract_images(response: Any) -> list[str]:
     ]
 
 
-async def generate_images(
-    prompt_request: PromptRequest, session: AsyncSession, user: User, session_id: int | None = None
-) -> dict[str, list[str]]:
-    current_session = None
-
-    if session_id:
+async def generate_images(session_id: int) -> dict[str, list[str]]:
+    async with async_session_maker() as session:
         stmt = (
             select(Session)
-            .where(Session.id == session_id, Session.user_id == user.id)
-            .options(selectinload(Session.items))
+            .where(Session.id == session_id)
+            .options(selectinload(Session.items).selectinload(SessionItem.images).joinedload(SessionItemImage.image))
         )
         result = await session.execute(stmt)
         current_session = result.scalar_one_or_none()
 
         if not current_session:
-            raise ValueError(f"Session {session_id} not found or access denied")
+            raise ValueError(f"Session {session_id} not found")
 
-    else:
-        current_session = Session(user_id=user.id)
-        session.add(current_session)
-        await session.commit()
+        content = []
+        for session_item in current_session.items:
+            content.extend([{"type": "text", "text": session_item.text}])
+            content.extend(await session_item.get_image_data_for_context())
 
-    session_item = SessionItem(session_id=current_session.id, text=prompt_request.prompt)
-    session.add(session_item)
-    await session.flush()
+        async with OpenRouter(api_key=settings.OPENROUTER_API_KEY) as client:
+            try:
+                response: ChatResponse = await client.chat.send_async(
+                    model="google/gemini-3.1-flash-image-preview",
+                    messages=[{"role": "user", "content": content}],
+                    modalities=["image"],
+                    session_id=f"metis-sesion-{current_session.id}",
+                )
+            except BadRequestResponseError as e:
+                logger.error(f"OpenRouter error: {e}")
+                raise AthenaException from e
 
-    stmt = select(Session).where(Session.id == current_session.id).options(selectinload(Session.items))
-    result = await session.execute(stmt)
-    current_session = result.scalar_one()
-    input_text = "\n".join([item.text for item in current_session.items if item.text])
+        result_images = []
+        if images := extract_images(response):
+            for image in await upload_images(
+                session=session,
+                images=images,
+                prefix=f"session_{current_session.id}_generated_",
+                source=ImageSource.OPENROUTER,
+            ):
+                item_image = SessionItemImage(session_item_id=session_item.id, image_id=image.id)
+                session.add(item_image)
+                result_images.append(f"/media/{Path(image.file_path).name}")
 
-    text = prompt_request.prompt
-    if summary := await summarize_session(input_text=input_text):
-        text = summary
-
-    content = [{"type": "text", "text": text}]
-    if prompt_request.images:
-        for image in await upload_images(
-            session=session, images=prompt_request.images, prefix=f"session_{current_session.id}_upload_"
-        ):
-            session.add(SessionItemImage(session_item_id=session_item.id, image_id=image.id))
-        await session.commit()
-
-    stmt = (
-        select(SessionItem)
-        .where(SessionItem.id == session_item.id)
-        .options(selectinload(SessionItem.images).selectinload(SessionItemImage.image))
-    )
-    result = await session.execute(stmt)
-    session_item = result.scalar_one()
-    if session_item.images:
-        content.extend(await session_item.get_image_data_for_context())
-
-    async with OpenRouter(api_key=settings.OPENROUTER_API_KEY) as client:
-        response: ChatResponse = await client.chat.send_async(
-            model="google/gemini-3-pro-image-preview",
-            messages=[{"role": "user", "content": content}],
-            modalities=["image"],
-            session_id=str(current_session.id),
-        )
-
-    result_images = []
-    if images := extract_images(response):
-        for image in await upload_images(
-            session=session,
-            images=images,
-            prefix=f"session_{current_session.id}_generated_",
-            source=ImageSource.OPENROUTER,
-        ):
-            item_image = SessionItemImage(session_item_id=session_item.id, image_id=image.id)
-            session.add(item_image)
-            result_images.append(f"/media/{Path(image.file_path).name}")
-
-        await session.commit()
+            await session.commit()
 
     return {"images": result_images}

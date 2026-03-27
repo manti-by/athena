@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Integer, Text
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from athena.models.base import Base
 from athena.models.mixins import TimestampMixin
 from athena.services.image import read_image_mimetype_and_data
+from athena.settings import get_settings
 
 
 if TYPE_CHECKING:
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 class SessionItem(Base, TimestampMixin):
@@ -35,7 +38,8 @@ class SessionItem(Base, TimestampMixin):
     async def get_image_data_list(self) -> list[str]:
         result = []
         for image in self.images:
-            if image_data := await read_image_mimetype_and_data(image_path=image.image.file_path):
+            image_path = Path(settings.UPLOAD_DIR) / image.image.file_path
+            if image_data := await read_image_mimetype_and_data(image_path=str(image_path)):
                 mime_type, encoded_string = image_data
                 result.append(f"data:{mime_type};base64,{encoded_string}")
         return result

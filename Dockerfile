@@ -15,4 +15,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 EXPOSE 8002
 
+WORKDIR /srv/app/src
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]

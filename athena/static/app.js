@@ -6,6 +6,7 @@ const imageInput = document.getElementById("image-input");
 const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
+const userDropdown = document.getElementById("user-dropdown");
 const userAvatar = document.getElementById("user-avatar");
 const userName = document.getElementById("user-name");
 const inputContainer = document.getElementById("input-container");
@@ -25,8 +26,8 @@ async function resetUI() {
     userInfo.style.display = "none";
     loginBtn.style.display = "block";
     logoutBtn.style.display = "none";
+    userDropdown.classList.remove("show");
     sessionSelector.style.display = "none";
-    newSessionBtn.style.display = "none";
     chatContainer.classList.add("hidden");
     inputContainer.classList.add("hidden");
     authPrompt.classList.remove("hidden");
@@ -71,6 +72,21 @@ logoutBtn.addEventListener("click", async () => {
     window.location.reload();
 });
 
+userInfo.addEventListener("click", (e) => {
+    e.stopPropagation();
+    userDropdown.classList.toggle("show");
+});
+
+document.addEventListener("click", () => {
+    userDropdown.classList.remove("show");
+});
+
+document.getElementById("dropdown-logout-btn").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await fetch("/api/v1/auth/logout", { method: "POST" });
+    window.location.reload();
+});
+
 async function loadSessions() {
     try {
         const response = await fetch("/api/v1/sessions/");
@@ -79,7 +95,7 @@ async function loadSessions() {
         }
 
         const sessions = await response.json();
-        sessionSelector.innerHTML = '<option value="">New Session</option>';
+        sessionSelector.innerHTML = "";
         sessions.forEach((session) => {
             const option = document.createElement("option");
             option.value = session.id;
@@ -87,8 +103,15 @@ async function loadSessions() {
             option.textContent = `Session ${session.id} - ${date}`;
             sessionSelector.appendChild(option);
         });
-        if (currentSessionId) {
+
+        if (sessions.length > 0) {
+            const lastSession = sessions[0];
+            currentSessionId = lastSession.id;
             sessionSelector.value = currentSessionId;
+            deleteSessionBtn.style.display = "block";
+            loadSessionMessages(currentSessionId);
+        } else {
+            createNewSession();
         }
     } catch (e) {
         console.error("Failed to load sessions:", e);
@@ -117,17 +140,19 @@ async function createNewSession() {
 }
 
 sessionSelector.addEventListener("change", (e) => {
-    currentSessionId = e.target.value ? parseInt(e.target.value, 10) : null;
+    currentSessionId = parseInt(e.target.value, 10);
     chatContainer.innerHTML = "";
-    deleteSessionBtn.style.display = currentSessionId ? "block" : "none";
-    if (currentSessionId) {
-        loadSessionMessages(currentSessionId);
-    }
+    loadSessionMessages(currentSessionId);
 });
 
 deleteSessionBtn.addEventListener("click", async () => {
     if (!currentSessionId) return;
-    if (!confirm("Are you sure you want to delete this session? This cannot be undone.")) return;
+    if (
+        !confirm(
+            "Are you sure you want to delete this session? This cannot be undone.",
+        )
+    )
+        return;
 
     try {
         const response = await fetch(`/api/v1/sessions/${currentSessionId}`, {
@@ -136,10 +161,6 @@ deleteSessionBtn.addEventListener("click", async () => {
         if (!response.ok) {
             throw new Error("Failed to delete session");
         }
-        currentSessionId = null;
-        chatContainer.innerHTML = "";
-        deleteSessionBtn.style.display = "none";
-        sessionSelector.value = "";
         await loadSessions();
     } catch (e) {
         console.error("Failed to delete session:", e);
@@ -163,7 +184,11 @@ async function loadSessionMessages(sessionId) {
             if (item.images && item.images.length > 0) {
                 for (const img of item.images) {
                     if (img.source === "OPENROUTER") {
-                        addMessage("Generated image:", "assistant", img.file_path);
+                        addMessage(
+                            "Generated image:",
+                            "assistant",
+                            img.file_path,
+                        );
                     }
                 }
             }
@@ -184,11 +209,13 @@ function addMessage(content, type, imageData = null, userImages = null) {
     messageDiv.className = `message ${type}`;
 
     if (type === "loading") {
-        messageDiv.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div><span>Creating...</span>';
+        messageDiv.innerHTML =
+            '<div class="loading-dots"><span></span><span></span><span></span></div><span>Creating...</span>';
     } else if (type === "error") {
         messageDiv.textContent = content;
     } else {
-        const imagesToShow = userImages || (type === "user" ? attachedImages : null);
+        const imagesToShow =
+            userImages || (type === "user" ? attachedImages : null);
         if (imagesToShow && imagesToShow.length > 0) {
             const imgContainer = document.createElement("div");
             imgContainer.className = "attached-images";
@@ -275,7 +302,7 @@ async function sendPrompt() {
     imageBtn.disabled = true;
 
     if (!currentSessionId) {
-        addMessage("Please select or create a session first", "error");
+        addMessage("No session available", "error");
         promptInput.disabled = false;
         sendBtn.disabled = false;
         imageBtn.disabled = false;
