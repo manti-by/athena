@@ -5,9 +5,9 @@ run:
 deploy:
 	git pull --ff-only
 	uv sync
-	sudo systemctl daemon-reload
-	sudo systemctl restart athena.service
-	sudo service nginx reload
+	docker compose stop
+	docker image rm athena-app:latest
+	docker compose up -d
 
 check:
 	git add .

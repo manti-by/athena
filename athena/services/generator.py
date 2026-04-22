@@ -39,7 +39,7 @@ def extract_images(response: Any) -> list[str]:
     ]
 
 
-async def generate_images(session_id: int) -> dict[str, list[str]]:
+async def generate_images(session_id: int, model: str) -> dict[str, list[str]]:
     async with async_session_maker() as session:
         stmt = (
             select(Session)
@@ -60,10 +60,10 @@ async def generate_images(session_id: int) -> dict[str, list[str]]:
         async with OpenRouter(api_key=settings.OPENROUTER_API_KEY) as client:
             try:
                 response: ChatResponse = await client.chat.send_async(
-                    model="google/gemini-3.1-flash-image-preview",
+                    model=model,
                     messages=[{"role": "user", "content": content}],
                     modalities=["image"],
-                    session_id=f"metis-sesion-{current_session.id}",
+                    session_id=f"metis-sesion-{model}-{current_session.id}",
                 )
             except BadRequestResponseError as e:
                 logger.error(f"OpenRouter error: {e}")

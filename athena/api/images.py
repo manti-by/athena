@@ -7,8 +7,10 @@ from athena.schemas.api import PromptRequest
 from athena.services.auth import get_user_from_request
 from athena.services.database import get_or_create_user_session, update_user_session
 from athena.services.generator import generate_images
+from athena.settings import get_settings
 
 
+settings = get_settings()
 router = APIRouter(prefix="/api/v1/image", tags=["images"])
 
 
@@ -24,6 +26,6 @@ async def generate_image(
     await update_user_session(prompt_request=prompt_request, session_id=current_session.id)
 
     try:
-        return await generate_images(session_id=current_session.id)
+        return await generate_images(session_id=current_session.id, model=settings.OPENROUTER_MODEL)
     except AthenaException:
         return {"error": "Provider returned an error please check logs for more details"}
