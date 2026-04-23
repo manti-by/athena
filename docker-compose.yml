@@ -24,7 +24,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-https://athena.manti.by/auth/google/callback}
-      - UPLOAD_DIR=/var/lib/app/uploads
+      - UPLOAD_DIR=/var/lib/app
       - LOG_PATH=/var/log/app/athena.log
     volumes:
       - .:/srv/app/src/

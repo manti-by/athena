@@ -5,7 +5,10 @@ LABEL maintainer="Alex Chaika <manti.by@gmail.com>"
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/usr/local
 
-RUN mkdir -p /srv/app/src/ /var/lib/app/uploads/ /var/log/app/
+RUN mkdir -p /srv/app/src/ /var/lib/app/ /var/log/app/
+
+RUN useradd -m -s /bin/bash -d /home/manti manti && \
+    chown -R manti:manti /srv/app/src/ /var/lib/app/ /var/log/app/
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -14,7 +17,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-editable
 
 EXPOSE 8002
-
+USER manti
 WORKDIR /srv/app/src
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
