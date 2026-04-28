@@ -31,7 +31,7 @@ class Settings:
 
     LOGGING = {
         "version": 1,
-        "disable_existing_loggers": False,
+        "disable_existing_loggers": True,
         "formatters": {
             "standard": {
                 "format": "%(asctime)s %(levelname)-6s: %(filename)-8s - %(message)s",

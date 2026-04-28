@@ -1,4 +1,5 @@
 import asyncio
+import os
 import tempfile
 import uuid
 from pathlib import Path
@@ -88,6 +89,7 @@ async def upload_images(
         try:
             tmp.write(image_bytes)
             tmp.close()
+            os.chmod(tmp.name, 0o644)
             tmp_path = Path(tmp.name)
         except Exception:
             tmp.close()
