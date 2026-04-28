@@ -47,7 +47,7 @@ class Settings:
             "file": {
                 "level": "WARNING",
                 "class": "logging.FileHandler",
-                "filename": os.getenv("LOG_PATH", "/var/log/app/athena.log"),
+                "filename": os.environ.get("LOG_PATH", "/var/log/app/athena.log"),
                 "formatter": "standard",
             },
         },
