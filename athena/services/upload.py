@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 
 import httpx
-from sqlalchemy import event, update
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from athena.models.image import Image, ImageSource
@@ -119,32 +119,13 @@ async def upload_images(
             for tmp_path, file_path in pending:
                 tmp_path.rename(file_path)
 
-            thumbnail_updates = []
             for img in result:
                 if img.file_path in image_bytes_map:
                     try:
-                        thumb_100, thumb_600 = generate_thumbnails_sync(img.file_path, image_bytes_map[img.file_path])
-                        thumbnail_updates.append({"id": img.id, "thumbnail_100": thumb_100, "thumbnail_600": thumb_600})
+                        generate_thumbnails_sync(img.file_path, image_bytes_map[img.file_path])
+                        logger.info(f"Thumbnail are generated for image #{img.file_path}")
                     except OSError as e:
                         logger.warning("Failed to generate thumbnails for %s: %s", img.file_path, e)
-
-            if thumbnail_updates:
-                from athena.services.database import get_sync_session
-
-                sync_session = get_sync_session()
-                try:
-                    for update_data in thumbnail_updates:
-                        sync_session.execute(
-                            update(Image)
-                            .where(Image.id == update_data["id"])
-                            .values(
-                                thumbnail_100=update_data["thumbnail_100"],
-                                thumbnail_600=update_data["thumbnail_600"],
-                            )
-                        )
-                    sync_session.commit()
-                finally:
-                    sync_session.close()
 
             loop = asyncio.get_event_loop()
             loop.call_soon(lambda: event.remove(session.sync_session, "after_commit", on_commit))
