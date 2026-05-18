@@ -3,7 +3,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from athena.models.image import Image
@@ -41,14 +41,8 @@ async def fix_thumbnails() -> None:
 
         try:
             image_bytes = file_path.read_bytes()
-            thumb_100, thumb_600 = generate_thumbnails_sync(image.file_path, image_bytes)
-            async with async_session_maker() as session:
-                await session.execute(
-                    update(Image).where(Image.id == image.id).values(thumbnail_100=thumb_100, thumbnail_600=thumb_600)
-                )
-                await session.commit()
-
-            logger.info(f"Updated thumbnails for image {image.id}: {image.file_path}")
+            generate_thumbnails_sync(image.file_path, image_bytes)
+            logger.info(f"Thumbnails are generated for image #{image.id}: {image.file_path}")
             updated += 1
 
         except Exception as e:  # noqa

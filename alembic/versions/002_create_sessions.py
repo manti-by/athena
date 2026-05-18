@@ -75,7 +75,6 @@ def downgrade() -> None:
     op.drop_index("ix_session_items_session_id", table_name="session_items")
     op.drop_index("ix_session_items_id", table_name="session_items")
     op.drop_table("session_items")
-    op.drop_index("ix_images_id", table_name="images")
     op.drop_table("images")
     op.drop_index("ix_sessions_user_id", table_name="sessions")
     op.drop_index("ix_sessions_id", table_name="sessions")
