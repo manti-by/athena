@@ -176,13 +176,14 @@ async function loadSessionMessages(sessionId) {
 
         const session = await response.json();
         for (const item of session.items) {
-            const userImages = item.images
+            const images = item.images || [];
+            const userImages = images
                 .filter((img) => img.source === "USER")
                 .map((img) => ({ src: img.file_path }));
             addMessage(item.text, "user", null, userImages);
 
-            if (item.images && item.images.length > 0) {
-                for (const img of item.images) {
+            if (images.length > 0) {
+                for (const img of images) {
                     if (img.source === "OPENROUTER") {
                         addMessage(
                             "Generated image:",

@@ -15,7 +15,7 @@ class Settings:
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
-    DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/athena")
+    DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://athena:athena@localhost:5432/athena")
 
     OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
     OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-3.1-flash-image-preview")

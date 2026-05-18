@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any
 
 from openrouter import OpenRouter
-from openrouter.components import ChatResponse
 from openrouter.errors import BadRequestResponseError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -59,7 +58,7 @@ async def generate_images(session_id: int, model: str) -> dict[str, list[str]]:
 
         async with OpenRouter(api_key=settings.OPENROUTER_API_KEY) as client:
             try:
-                response: ChatResponse = await client.chat.send_async(
+                response = await client.chat.send_async(
                     model=model,
                     messages=[{"role": "user", "content": content}],
                     modalities=["image"],
