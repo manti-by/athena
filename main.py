@@ -47,5 +47,13 @@ app.include_router(sessions_router)
 async def root():
     index_path = templates_dir / "index.html"
     if index_path.exists():
-        return index_path.read_text()
+        content = index_path.read_text()
+        return HTMLResponse(
+            content=content,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     return "<h1>No template found</h1>"

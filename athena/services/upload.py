@@ -1,16 +1,21 @@
 import asyncio
+import logging
 import os
 import tempfile
 import uuid
 from pathlib import Path
 
 import httpx
-from sqlalchemy import event
+from sqlalchemy import event, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from athena.models.image import Image, ImageSource
 from athena.services.image import validate_base64_image
+from athena.services.thumbnail import generate_thumbnails_sync
 from athena.settings import get_settings
+
+
+logger = logging.getLogger(__name__)
 
 
 _MAGIC_BYTES_TO_EXT = {
@@ -47,6 +52,7 @@ async def upload_images(
     result: list[Image] = []
     pending: list[tuple[Path, Path]] = []
     validation_errors: list[dict[str, str | int]] = []
+    image_bytes_map: dict[str, bytes] = {}
 
     for idx, image in enumerate(images):
         image_bytes = validate_base64_image(image)
@@ -99,6 +105,7 @@ async def upload_images(
         new_image = Image(file_path=file_name, source=source)
         session.add(new_image)
         result.append(new_image)
+        image_bytes_map[file_name] = image_bytes
 
     if validation_errors:
         for tmp_path, _ in pending:
@@ -111,6 +118,34 @@ async def upload_images(
         def on_commit(_session: AsyncSession) -> None:
             for tmp_path, file_path in pending:
                 tmp_path.rename(file_path)
+
+            thumbnail_updates = []
+            for img in result:
+                if img.file_path in image_bytes_map:
+                    try:
+                        thumb_100, thumb_600 = generate_thumbnails_sync(img.file_path, image_bytes_map[img.file_path])
+                        thumbnail_updates.append({"id": img.id, "thumbnail_100": thumb_100, "thumbnail_600": thumb_600})
+                    except OSError as e:
+                        logger.warning("Failed to generate thumbnails for %s: %s", img.file_path, e)
+
+            if thumbnail_updates:
+                from athena.services.database import get_sync_session
+
+                sync_session = get_sync_session()
+                try:
+                    for update_data in thumbnail_updates:
+                        sync_session.execute(
+                            update(Image)
+                            .where(Image.id == update_data["id"])
+                            .values(
+                                thumbnail_100=update_data["thumbnail_100"],
+                                thumbnail_600=update_data["thumbnail_600"],
+                            )
+                        )
+                    sync_session.commit()
+                finally:
+                    sync_session.close()
+
             loop = asyncio.get_event_loop()
             loop.call_soon(lambda: event.remove(session.sync_session, "after_commit", on_commit))
 

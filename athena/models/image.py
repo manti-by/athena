@@ -22,6 +22,8 @@ class Image(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    thumbnail_100: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    thumbnail_600: Mapped[str | None] = mapped_column(String(512), nullable=True)
     source: Mapped[ImageSource] = mapped_column(nullable=False, default=ImageSource.USER)
 
     session_items: Mapped[list["SessionItemImage"]] = relationship(  # noqa: F821

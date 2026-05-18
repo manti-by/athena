@@ -1,12 +1,14 @@
 run:
 	uv run uvicorn main:app --host 0.0.0.0 --port 8002 --reload
 
+thumbnails:
+	uv run -m scripts.regenerate_thumbnails
 
 deploy:
 	git pull --ff-only
 	uv sync
 	docker compose stop
-	docker image rm athena-app:latest
+	docker image rm -f athena-app:latest
 	docker compose up -d
 
 check:

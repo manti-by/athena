@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
@@ -32,7 +34,7 @@ async def google_callback(code: str, request: Request):
     token_data = TokenData(user_id=user.id, email=user.email)
     access_token = create_access_token(data=token_data.model_dump())
 
-    response = RedirectResponse(url="/")
+    response = RedirectResponse(url=f"/?t={int(time.time())}")
     response.set_cookie(
         key="access_token",
         value=access_token,

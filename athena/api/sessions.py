@@ -46,11 +46,13 @@ async def get_session(request: Request, session_id: int) -> SessionDetailRespons
     for item in user_session.items:
         item_images = []
         for si_image in item.images:
-            file_name = Path(si_image.image.file_path).name
+            file_path = Path(si_image.image.file_path)
             item_images.append(
                 SessionItemImageResponse(
                     id=si_image.image.id,
-                    file_path=f"/media/{file_name}",
+                    file_path=f"/media/{file_path.name}",
+                    thumbnail_100=f"/media/{file_path.stem}_thumb_100.jpg",
+                    thumbnail_600=f"/media/{file_path.stem}_thumb_600.jpg",
                     source=si_image.image.source.value,
                     created_at=si_image.image.created_at,
                 )

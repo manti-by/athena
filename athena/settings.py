@@ -31,27 +31,28 @@ class Settings:
 
     LOGGING = {
         "version": 1,
-        "disable_existing_loggers": True,
+        "disable_existing_loggers": False,
         "formatters": {
             "standard": {
-                "format": "%(asctime)s %(levelname)-6s: %(filename)-8s - %(message)s",
+                "format": "%(asctime)s %(levelname)-6s %(name)-12s %(filename)-8s:%(lineno)d - %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             }
         },
         "handlers": {
             "console": {
-                "level": "INFO",
+                "level": "DEBUG",
                 "class": "logging.StreamHandler",
                 "formatter": "standard",
             },
             "file": {
-                "level": "WARNING",
+                "level": "DEBUG",
                 "class": "logging.FileHandler",
-                "filename": os.environ.get("LOG_PATH", "/var/log/app/athena.log"),
+                "filename": os.environ.get("LOG_PATH", "/var/log/athena/athena.log"),
                 "formatter": "standard",
             },
         },
         "loggers": {
+            "athena": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": False},
             "": {"handlers": ["console", "file"], "level": "INFO", "propagate": True},
         },
     }

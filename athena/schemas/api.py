@@ -30,6 +30,8 @@ class SessionItemResponse(BaseModel):
 class SessionItemImageResponse(BaseModel):
     id: int
     file_path: str
+    thumbnail_100: str | None = None
+    thumbnail_600: str | None = None
     source: str
     created_at: datetime
 

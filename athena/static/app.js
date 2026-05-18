@@ -109,6 +109,7 @@ async function loadSessions() {
             currentSessionId = lastSession.id;
             sessionSelector.value = currentSessionId;
             deleteSessionBtn.style.display = "block";
+            chatContainer.innerHTML = "";
             loadSessionMessages(currentSessionId);
         } else {
             createNewSession();
@@ -179,7 +180,7 @@ async function loadSessionMessages(sessionId) {
             const images = item.images || [];
             const userImages = images
                 .filter((img) => img.source === "USER")
-                .map((img) => ({ src: img.file_path }));
+                .map((img) => ({ src: img.thumbnail_100 || img.file_path }));
             addMessage(item.text, "user", null, userImages);
 
             if (images.length > 0) {
@@ -202,6 +203,18 @@ async function loadSessionMessages(sessionId) {
 newSessionBtn.addEventListener("click", createNewSession);
 
 checkAuth();
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        checkAuth();
+    }
+});
+
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+        checkAuth();
+    }
+});
 
 let attachedImages = [];
 

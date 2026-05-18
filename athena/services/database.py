@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 
-from sqlalchemy import Sequence, select
+from sqlalchemy import Sequence, create_engine, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session as SyncSession
+from sqlalchemy.orm import selectinload, sessionmaker
 
 from athena.models import Session
 from athena.models.session_item import SessionItem
@@ -20,6 +21,13 @@ async_session_maker = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+sync_engine = create_engine(settings.DATABASE_URL.replace("+asyncpg", "").replace("postgresql+asyncpg", "postgresql"))
+sync_session_maker = sessionmaker(bind=sync_engine, class_=SyncSession, expire_on_commit=False)
+
+
+def get_sync_session() -> SyncSession:
+    return sync_session_maker()
 
 
 async def create_user_session(user_id: int) -> Session:
