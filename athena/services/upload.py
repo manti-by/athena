@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 import tempfile
@@ -6,7 +5,6 @@ import uuid
 from pathlib import Path
 
 import httpx
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from athena.models.image import Image, ImageSource
@@ -113,30 +111,17 @@ async def upload_images(
         raise ImageValidationError(validation_errors)
 
     if pending:
+        for tmp_path, file_path in pending:
+            tmp_path.rename(file_path)
+
+        for img in result:
+            if img.file_path in image_bytes_map:
+                try:
+                    generate_thumbnails_sync(img.file_path, image_bytes_map[img.file_path])
+                    logger.info(f"Thumbnails generated for image #{img.file_path}")
+                except OSError as e:
+                    logger.warning("Failed to generate thumbnails for %s: %s", img.file_path, e)
+
         await session.commit()
-
-        def on_commit(_session: AsyncSession) -> None:
-            for tmp_path, file_path in pending:
-                tmp_path.rename(file_path)
-
-            for img in result:
-                if img.file_path in image_bytes_map:
-                    try:
-                        generate_thumbnails_sync(img.file_path, image_bytes_map[img.file_path])
-                        logger.info(f"Thumbnail are generated for image #{img.file_path}")
-                    except OSError as e:
-                        logger.warning("Failed to generate thumbnails for %s: %s", img.file_path, e)
-
-            loop = asyncio.get_event_loop()
-            loop.call_soon(lambda: event.remove(session.sync_session, "after_commit", on_commit))
-
-        def on_rollback(_session: AsyncSession) -> None:
-            for tmp_path, _ in pending:
-                tmp_path.unlink(missing_ok=True)
-            loop = asyncio.get_event_loop()
-            loop.call_soon(lambda: event.remove(session.sync_session, "after_rollback", on_rollback))
-
-        event.listen(session.sync_session, "after_commit", on_commit)
-        event.listen(session.sync_session, "after_rollback", on_rollback)
 
     return result

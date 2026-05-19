@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -10,6 +11,7 @@ from athena.services.generator import generate_images
 from athena.settings import get_settings
 
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter(prefix="/api/v1/image", tags=["images"])
 
@@ -29,3 +31,6 @@ async def generate_image(
         return await generate_images(session_id=current_session.id, model=settings.OPENROUTER_MODEL)
     except AthenaException:
         return {"error": "Provider returned an error please check logs for more details"}
+    except Exception as e:
+        logger.exception("Failed to generate images")
+        return {"error": str(e)}

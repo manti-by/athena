@@ -64,24 +64,33 @@ async def generate_images(session_id: int, model: str) -> dict[str, list[str]]:
                     modalities=["image"],
                     session_id=f"metis-sesion-{model}-{current_session.id}",
                 )
-                logger.info(f"OpenRouter response: {response}")
             except BadRequestResponseError as e:
                 logger.error(f"OpenRouter error: {e}")
                 raise AthenaException from e
 
         result_images = []
         if images := extract_images(response):
+            assistant_item = SessionItem(session_id=current_session.id, text="")
+            session.add(assistant_item)
+            await session.flush()
             for image in await upload_images(
                 session=session,
                 images=images,
                 prefix=f"session_{current_session.id}_generated_",
                 source=ImageSource.OPENROUTER,
             ):
-                item_image = SessionItemImage(session_item_id=session_item.id, image_id=image.id)
+                item_image = SessionItemImage(session_item_id=assistant_item.id, image_id=image.id)
                 session.add(item_image)
                 result_images.append(f"/media/{Path(image.file_path).name}")
 
             await session.commit()
+            logger.info(f"OpenRouter returned {len(result_images)} images")
 
-    logger.info(f"OpenRouter returned {len(result_images)} images")
+        else:
+            session_item = SessionItem(session_id=session_id, text="Generator didn't return any images")
+            session.add(session_item)
+
+            await session.commit()
+            logger.warning("OpenRouter didn't return images")
+
     return {"images": result_images}

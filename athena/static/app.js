@@ -189,7 +189,7 @@ async function loadSessionMessages(sessionId) {
                         addMessage(
                             "Generated image:",
                             "assistant",
-                            img.file_path,
+                            img.thumbnail_600 || img.file_path,
                         );
                     }
                 }
